@@ -15,32 +15,91 @@ Database schema:
                               looks up mcc_label, looks up category, and computes historically
                               correct department via a temporal join
 """
-import sys, sqlite3, random, hashlib, openpyxl
+import sys, sqlite3, random, hashlib, os, anthropic, json
 from datetime import datetime
+import pandas as pd
 
 DB_PATH = "expense.db"
 
 # MCC lookup codes --
-MCC_ROWS = [
-    (9399, "Government services", "Permits & fees"),
-    (5541, "Fuel station (with store)", "Fuel & travel"),
-    (5542, "Automated fuel dispenser", "Fuel & travel"),
-    (7542, "Car wash", "Vehicle maintenance"),
-    (7538, "Auto service shop", "Vehicle maintenance"),
-    (5533, "Auto parts", "Vehicle maintenance"),
-    (5561, "Trailers & campers", "Vehicle maintenance"),
-    (4784, "Tolls & bridge fees", "Fuel & travel"),
-    (4121, "Taxi / rideshare", "Fuel & travel"),
-    (4215, "Courier services", "Shipping & logistics"),
-    (5046, "Commercial equipment", "Equipment & supplies"),
-    (7399, "Business services", "Professional services"),
-    (5734, "Software", "Software & subscriptions"),
-    (4816, "Computer network services", "Software & subscriptions"),
-    (5814, "Fast food", "Meals & entertainment"),
-    (5812, "Restaurants", "Meals & entertainment"),
-    (5300, "Wholesale club", "Office & supplies"),
-    (5947, "Gift & novelty shop", "Other (review)"),
-]
+"""
+Returns the MCC category of a given MCC.
+Always runs and is used if LLM categorization fails or is unavailable, providing a deterministic default categorization based on ISO-defined MCC ranges.
+"""
+def category_for(mcc: int) -> str:
+    if 1 <= mcc <= 1499: return "Agricultural Services"
+    if 1500 <= mcc <= 2990: return "Contracted Services"
+    if 3000 <= mcc <= 3299: return "Airlines"
+    if 3300 <= mcc <= 3499: return "Car Rental"
+    if 3500 <= mcc <= 3999: return "Lodging"
+    if 4000 <= mcc <= 4999: return "Utility Services"
+    if 5000 <= mcc <= 5599: return "Retail Outlet Services"
+    if 5600 <= mcc <= 5699: return "Clothing Stores"
+    if 5700 <= mcc <= 7299: return "Miscellaneous Services"
+    if 7300 <= mcc <= 7999: return "Business Services"
+    if 8000 <= mcc <= 8999: return "Professional Services and Membership Organizations"
+    if 9000 <= mcc <= 9999: return "Government Services"
+    return "Other (review)"
+
+_mcc_csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data/mcc_codes.csv")
+_mcc_df = pd.read_csv(_mcc_csv_path)
+MCC_LABELS = dict(zip(_mcc_df["mcc"].astype(int), _mcc_df["edited_description"]))
+MCC_ROWS = [(c, MCC_LABELS[c], category_for(c)) for c in sorted(MCC_LABELS)]
+
+# Caches LLM defined categories to avoid repeated API calls on same data
+CATEGORY_CACHE = "llm_categories.json"
+
+"""
+Refines mcc_codes.category using one LLM call over the MCCs actually present in the data, weighted by spend. 
+Safe no-op on any failure.
+"""
+def llm_categorize(conn):
+    # Distinct codes in the data with labels and spend, categorize by total spend to prioritize the most important ones in the prompt
+    rows = conn.execute("""
+        SELECT t.mcc, m.label, ROUND(SUM(t.amount_orig * CASE WHEN t.conversion_rate > 0 THEN t.conversion_rate ELSE 1 END), 0) AS cad, COUNT(*) AS n
+        FROM transactions t JOIN mcc_codes m ON m.mcc = t.mcc
+        WHERE t.debit_credit = 'Debit' AND t.mcc IS NOT NULL
+        GROUP BY t.mcc ORDER BY cad DESC""").fetchall()
+    if not rows:
+        return # No MCCs to categorize, skip LLM call
+
+    cache_path = os.path.join(os.path.dirname(DB_PATH), CATEGORY_CACHE)
+    mapping = None
+    if os.path.exists(cache_path):
+        mapping = {int(k): v for k, v in json.load(open(cache_path)).items()}
+    else:
+        try:
+            client = anthropic.Anthropic()
+            listing = "\n".join(f"{mcc}: {label} (${cad:,.0f}, {n} txns)" for mcc, label, cad, n in rows)
+            resp = client.messages.create(
+                model="claude-sonnet-4-5", max_tokens=4000,
+                messages=[{"role": "user", "content":
+                    "Below are the merchant category codes present in one "
+                    "company's card transactions, with official descriptions "
+                    "and total spend. Infer the business type, then propose "
+                    "8-12 budget categories a finance manager at this company "
+                    "would want, and assign EVERY code to exactly one. "
+                    "Categories must be short (1-3 words). Respond with ONLY "
+                    "a JSON object mapping code to category, no markdown "
+                    "fences, e.g. {\"5541\": \"Fuel\"}.\n\n" + listing}])
+            text = "".join(b.text for b in resp.content if b.type == "text")
+            mapping = {int(k): str(v) for k, v in
+                       json.loads(text.strip().removeprefix("```json")
+                                  .removesuffix("```")).items()}
+            json.dump(mapping, open(cache_path, "w"), indent=1)
+        except Exception as e:
+            print(f"LLM categorization skipped ({type(e).__name__}: {e}); "
+                  f"keeping ISO range categories.")
+            return
+
+    # Reject degenerate mappings with too few or too many categories
+    cats = set(mapping.values())
+    if not (3 <= len(cats) <= 20):
+        print(f"LLM mapping rejected ({len(cats)} categories); keeping ISO ranges.")
+        return
+    conn.executemany("UPDATE mcc_codes SET category=? WHERE mcc=?", [(c, m) for m, c in mapping.items()])
+    conn.commit()
+    print(f"LLM categories applied: {len(mapping)} codes -> {len(cats)} buckets")
 # --
 
 # Simulated employee layer --
@@ -74,7 +133,7 @@ def build_employees():
     random.seed(22)
     total = sum(h for _, h, _ in DEPARTMENTS)
     assert total <= len(FIRST) and total <= len(LAST), (f"Need {total} names but only have {min(len(FIRST), len(LAST))}") # Departments headcount must me less than or equalt to the minimum number of names
-    names = [f"{f} {l}" for f, l in zip(random.sample(FIRST, 33), random.sample(LAST, 33))]
+    names = [f"{f} {l}" for f, l in zip(random.sample(FIRST, total), random.sample(LAST, 33))]
     it = iter(names)
     employees, assignments, eid = [], [], 1
     for dept, headcount, _ in DEPARTMENTS:
@@ -254,8 +313,9 @@ def detect_violations(conn):
 # Main --
 """Opens the transaction data, builds all tables of database according to schema, augments and inserts transactions data, and detects and populates policy violations."""
 def main(xlsx_path):
-    wb = openpyxl.load_workbook(xlsx_path, read_only=True)
-    rows = list(wb.active.iter_rows(values_only=True))[1:] # Skip header
+    df = pd.read_excel(xlsx_path, engine="openpyxl", header=0) # Parse .xlsx file and skip header
+    df = df.astype(object).where(df.notna(), None) # Convert NaN/NaT to None
+    rows = df.itertuples(index=False, name=None)
     employees, assignments = build_employees()
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
@@ -275,7 +335,7 @@ def main(xlsx_path):
         dates_seen.add(iso)
         # Unknown MCCs must exist in the lookup or the FK (and view label), if comes back NULL then insert a stub row on first sight
         if mcc is not None:
-            conn.execute("INSERT OR IGNORE INTO mcc_codes VALUES (?,?,?)", (int(mcc), f"MCC {int(mcc)}", "Other"))
+            conn.execute("INSERT OR IGNORE INTO mcc_codes VALUES (?,?,?)", (int(mcc), f"MCC {int(mcc)}", category_for(int(mcc))))
         conn.execute(
             """INSERT INTO transactions
                (txn_date, posting_date, description, merchant, amount_orig,
@@ -295,6 +355,7 @@ def main(xlsx_path):
     quarters = sorted({quarter_of(d) for d in dates_seen})
     conn.executemany("INSERT INTO department_budgets VALUES (?,?,?)", [(d, q, b) for d, _, b in DEPARTMENTS for q in quarters])
     conn.commit()
+    llm_categorize(conn)
     detect_violations(conn)
     n_v = conn.execute("SELECT COUNT(*) FROM violations").fetchone()[0]
     print(f"Loaded {inserted} transactions, {len(employees)} employees, " f"{len(quarters)} quarters of budgets, {n_v} violations -> {DB_PATH}")

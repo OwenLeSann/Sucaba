@@ -1,1 +1,3 @@
-openpyxl	# Used for reading .xlsx data files in pipeline.py
+pandas	# Used for reading .xlsx and .csv data files in pipeline.py
+anthropic # Used for all agent calls
+

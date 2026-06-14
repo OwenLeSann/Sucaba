@@ -2,7 +2,7 @@
 Gives tool definitions (JSON schemas sent to the Claude API) and the
 matching executor functions for the provided schema.
 """
-import json, re, sqlite3
+import datetime, json, re, sqlite3
 
 DB_PATH = "expense.db"
 
@@ -200,52 +200,59 @@ The context includes the employee's current department, department history, mont
 """
 def exec_get_employee_context(employee_id: int) -> str:
     conn = _connect()
-    emp = conn.execute("SELECT * FROM employees WHERE id=?", (employee_id,)).fetchone()
-    if not emp:
-        return json.dumps({"error": f"No employee with id {employee_id}"})
-    ctx = {"employee": dict(emp)}
+    try:
+        emp = conn.execute("SELECT * FROM employees WHERE id=?", (employee_id,)).fetchone()
+        if not emp:
+            return json.dumps({"error": f"No employee with id {employee_id}"})
+        ctx = {"employee": dict(emp)}
 
-    # Current department from the history table (valid_to IS NULL)
-    cur_dept = conn.execute(
-        "SELECT department FROM employee_departments "
-        "WHERE employee_id=? AND valid_to IS NULL", (employee_id,)).fetchone()
-    ctx["current_department"] = cur_dept["department"] if cur_dept else None
-    ctx["department_history"] = [dict(r) for r in conn.execute(
-        "SELECT department, valid_from, valid_to FROM employee_departments "
-        "WHERE employee_id=? ORDER BY valid_from", (employee_id,))]
-    ctx["monthly_spend"] = [dict(r) for r in conn.execute(
-        """SELECT substr(txn_date,1,7) AS month,
-                  ROUND(SUM(amount_cad),2) AS cad
-           FROM v_transactions WHERE employee_id=? AND debit_credit='Debit'
-           GROUP BY 1 ORDER BY 1""", (employee_id,))]
-    ctx["top_categories"] = [dict(r) for r in conn.execute(
-        """SELECT category, COUNT(*) AS n, ROUND(SUM(amount_cad),2) AS cad
-           FROM v_transactions WHERE employee_id=? AND debit_credit='Debit'
-           GROUP BY 1 ORDER BY cad DESC LIMIT 5""", (employee_id,))]
-    ctx["violations"] = [dict(r) for r in conn.execute(
-        "SELECT rule, detail, severity FROM violations WHERE employee_id=? "
-        "ORDER BY severity DESC LIMIT 10", (employee_id,))]
+        cur_dept = conn.execute(
+            "SELECT department FROM employee_departments "
+            "WHERE employee_id=? AND valid_to IS NULL", (employee_id,)).fetchone()
+        ctx["current_department"] = cur_dept["department"] if cur_dept else None
+        ctx["department_history"] = [dict(r) for r in conn.execute(
+            "SELECT department, valid_from, valid_to FROM employee_departments "
+            "WHERE employee_id=? ORDER BY valid_from", (employee_id,))]
+        ctx["monthly_spend"] = [dict(r) for r in conn.execute(
+            """SELECT substr(txn_date,1,7) AS month,
+                      ROUND(SUM(amount_cad),2) AS cad
+               FROM v_transactions WHERE employee_id=? AND debit_credit='Debit'
+               GROUP BY 1 ORDER BY 1""", (employee_id,))]
+        ctx["top_categories"] = [dict(r) for r in conn.execute(
+            """SELECT category, COUNT(*) AS n, ROUND(SUM(amount_cad),2) AS cad
+               FROM v_transactions WHERE employee_id=? AND debit_credit='Debit'
+               GROUP BY 1 ORDER BY cad DESC LIMIT 5""", (employee_id,))]
+        # Only open violations — resolved/dismissed ones should not weigh against the employee.
+        ctx["open_violations"] = [dict(r) for r in conn.execute(
+            "SELECT rule, detail, severity, status FROM violations "
+            "WHERE employee_id=? AND status='open' "
+            "ORDER BY severity DESC LIMIT 10", (employee_id,))]
+        ctx["prior_approvals"] = [dict(r) for r in conn.execute(
+            "SELECT merchant, amount_cad, decision, reason, requested_at "
+            "FROM pre_approvals WHERE employee_id=? "
+            "ORDER BY requested_at DESC LIMIT 10", (employee_id,))]
 
-    # Budget status: current department, latest quarter present in the data
-    if cur_dept:
-        ctx["department_budget"] = (lambda r: dict(r) if r else None)(
-            conn.execute("""
-                WITH latest AS (
-                  SELECT MAX(quarter) AS q FROM department_budgets
-                ), spend AS (
-                  SELECT ROUND(SUM(amount_cad),2) AS spent
-                  FROM v_transactions, latest
-                  WHERE department=? AND debit_credit='Debit'
-                    AND (CAST(substr(txn_date,1,4) AS TEXT) || '-Q' ||
-                         CAST((CAST(substr(txn_date,6,2) AS INT)-1)/3+1 AS TEXT))
-                        = latest.q
-                )
-                SELECT b.department, b.quarter, b.budget_cad, s.spent,
-                       ROUND(b.budget_cad - COALESCE(s.spent,0),2) AS remaining
-                FROM department_budgets b, latest, spend s
-                WHERE b.department=? AND b.quarter=latest.q""",
-                (cur_dept["department"], cur_dept["department"])).fetchone())
-    conn.close()
+        # Budget status for current department, latest quarter in the data.
+        if cur_dept:
+            ctx["department_budget"] = (lambda r: dict(r) if r else None)(
+                conn.execute("""
+                    WITH latest AS (
+                      SELECT MAX(quarter) AS q FROM department_budgets
+                    ), spend AS (
+                      SELECT ROUND(SUM(t.amount_cad),2) AS spent
+                      FROM v_transactions t, latest
+                      WHERE t.department=? AND t.debit_credit='Debit'
+                        AND (CAST(substr(t.txn_date,1,4) AS TEXT) || '-Q' ||
+                             CAST((CAST(substr(t.txn_date,6,2) AS INT)-1)/3+1 AS TEXT))
+                            = latest.q
+                    )
+                    SELECT b.department, b.quarter, b.budget_cad, s.spent,
+                           ROUND(b.budget_cad - COALESCE(s.spent,0),2) AS remaining
+                    FROM department_budgets b, latest, spend s
+                    WHERE b.department=? AND b.quarter=latest.q""",
+                    (cur_dept["department"], cur_dept["department"])).fetchone())
+    finally:
+        conn.close()
     return json.dumps(ctx, default=str)
 
 """
@@ -281,7 +288,6 @@ def exec_record_approval_decision(
 ) -> str:
     if decision not in ("approved", "denied", "pending"):
         return json.dumps({"error": "decision must be 'approved', 'denied', or 'pending'"})
-    import datetime
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     decided_at = now if decision != "pending" else None
     conn = _connect_rw()

@@ -1,0 +1,74 @@
+:root {
+  /* ── Color ─────────────────────────────────── */
+  --color-bg:             oklch(1.000 0.000   0);   /* pure white body */
+  --color-surface:        oklch(0.975 0.006 330);   /* panels, sidebar */
+  --color-surface-2:      oklch(0.950 0.010 330);   /* hover rows, selected */
+  --color-border:         oklch(0.900 0.008 330);   /* dividers, input strokes */
+
+  --color-ink:            oklch(0.130 0.012 330);   /* body text (>7:1 on bg) */
+  --color-muted:          oklch(0.430 0.010 330);   /* secondary text (≥4.5:1) */
+
+  --color-primary:        oklch(0.480 0.155 330);   /* rose-mauve CTA */
+  --color-primary-hover:  oklch(0.420 0.155 330);
+  --color-primary-text:   oklch(1.000 0.000   0);   /* white on primary */
+
+  --color-accent:         oklch(0.620 0.130 195);   /* teal — chart fills */
+  --color-accent-deep:    oklch(0.380 0.130 195);   /* teal — links, text */
+
+  --color-error:          oklch(0.480 0.200  25);
+  --color-error-bg:       oklch(0.965 0.018  25);
+  --color-warning:        oklch(0.650 0.160  60);
+  --color-warning-bg:     oklch(0.970 0.018  60);
+  --color-success:        oklch(0.460 0.130 155);
+  --color-success-bg:     oklch(0.960 0.020 155);
+
+  /* ── Typography ─────────────────────────────── */
+  --font-sans:  'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  --text-micro:    0.75rem;    /* 12px */
+  --text-label:    0.8125rem;  /* 13px */
+  --text-body:     0.9375rem;  /* 15px */
+  --text-title:    1.125rem;   /* 18px */
+  --text-headline: 1.5rem;     /* 24px */
+
+  /* ── Spacing ─────────────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Radius ─────────────────────────────────── */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-full: 9999px;
+
+  /* ── Elevation ─────────────────────────────── */
+  --shadow-float:
+    0 1px 4px oklch(0.130 0.012 330 / 0.07),
+    0 4px 16px oklch(0.130 0.012 330 / 0.05);
+
+  /* ── Z-index scale ───────────────────────────── */
+  --z-dropdown:       10;
+  --z-sticky:         20;
+  --z-modal-backdrop: 30;
+  --z-modal:          40;
+  --z-toast:          50;
+  --z-tooltip:        60;
+
+  /* ── Motion ─────────────────────────────────── */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --dur-fast:  150ms;
+  --dur-base:  200ms;
+  --dur-slow:  400ms;
+
+  /* ── Layout constants ────────────────────────── */
+  --nav-height:     60px;
+  --tabbar-height:  48px;
+}

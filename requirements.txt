@@ -1,4 +1,6 @@
 pandas    # pd.read_excel / pd.read_csv in pipeline.py
 openpyxl  # xlsx engine required by pandas for .xlsx files
 anthropic # Anthropic API client used in agent.py and pipeline.py
+fastapi   # HTTP server for the frontend
+uvicorn[standard] # ASGI server for FastAPI
 

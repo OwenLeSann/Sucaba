@@ -77,13 +77,20 @@
   transition: border-color var(--dur-fast);
 }
 .sortSelect:hover { border-color: var(--color-ink); }
-.sortSelect:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
 .selectChevron {
   position: absolute;
   right: 9px;
   pointer-events: none;
   color: var(--color-muted);
+}
+
+/* ── Error state ─────────────────────────────────── */
+.errorNote {
+  font-size: var(--text-body);
+  color: var(--color-muted);
+  padding: var(--space-8) 0;
+  max-width: none;
 }
 
 /* ── Count line ──────────────────────────────────── */
@@ -145,9 +152,38 @@
   max-width: 55ch;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-wrap: pretty;
+}
+
+.detailExpanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+}
+
+.detailToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  font-size: var(--text-micro);
+  color: var(--color-muted);
+  transition: color var(--dur-fast);
+}
+.detailToggle:hover { color: var(--color-ink); }
+
+.toggleChevron {
+  flex-shrink: 0;
+  transition: transform var(--dur-base) var(--ease-out-quart);
+}
+.toggleChevronUp { transform: rotate(180deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .toggleChevron { transition: none; }
 }
 
 .rowMeta {
@@ -179,7 +215,7 @@
 .actionActive {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background: oklch(0.975 0.010 330);
+  background: var(--color-surface);
 }
 
 /* ── Resolve panel ───────────────────────────────── */
@@ -189,10 +225,22 @@
 
 .resolvePanelInner {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
   background: var(--color-surface);
+}
+
+.resolvePanelRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.actionErrorMsg {
+  font-size: var(--text-micro);
+  color: var(--color-error);
+  max-width: none;
 }
 
 .noteInput {

@@ -32,15 +32,17 @@ export default function Violations() {
   const [loading, setLoading]       = useState(true)
   const [filter, setFilter]         = useState('all')
   const [sort, setSort]             = useState<SortKey>('severity')
-  const [resolving, setResolving]   = useState<Resolving | null>(null)
-  const [note, setNote]             = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const prefersReduced              = useReducedMotion()
+  const [resolving, setResolving]     = useState<Resolving | null>(null)
+  const [note, setNote]               = useState('')
+  const [submitting, setSubmitting]   = useState(false)
+  const [error, setError]             = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const prefersReduced                = useReducedMotion()
 
   useEffect(() => {
     fetchViolations()
       .then(setViolations)
-      .catch(console.error)
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
 
@@ -71,13 +73,14 @@ export default function Violations() {
   async function confirmResolve() {
     if (!resolving) return
     setSubmitting(true)
+    setActionError(null)
     try {
       await resolveViolation(resolving.id, resolving.action, note || undefined)
       setViolations((prev) => prev.filter((v) => v.id !== resolving.id))
       setResolving(null)
       setNote('')
-    } catch (err) {
-      console.error(err)
+    } catch {
+      setActionError('Something went wrong. Try again.')
     } finally {
       setSubmitting(false)
     }
@@ -95,6 +98,13 @@ export default function Violations() {
       }
 
   if (loading) return <Skeleton />
+  if (error) return (
+    <div className={styles.root}>
+      <p className={styles.errorNote}>
+        Unable to load violations. Check the server connection and try refreshing.
+      </p>
+    </div>
+  )
 
   return (
     <div className={styles.root}>
@@ -162,8 +172,10 @@ export default function Violations() {
                 onResolve={() => startResolving(v.id, 'resolved')}
                 onDismiss={() => startResolving(v.id, 'dismissed')}
                 onConfirm={confirmResolve}
-                onCancel={() => { setResolving(null); setNote('') }}
+                onCancel={() => { setResolving(null); setNote(''); setActionError(null) }}
                 itemVariants={itemVariants}
+                prefersReduced={prefersReduced}
+                actionError={actionError}
               />
             ))}
           </AnimatePresence>
@@ -187,18 +199,28 @@ interface RowProps {
   onConfirm:      () => void
   onCancel:       () => void
   itemVariants:   Variants
+  prefersReduced: boolean | null | undefined
+  actionError:    string | null
 }
 
 function ViolationRow({
   violation: v, isExpanded, expandedAction,
   note, submitting, onNote, onResolve, onDismiss, onConfirm, onCancel,
-  itemVariants,
+  itemVariants, prefersReduced, actionError,
 }: RowProps) {
-  const noteRef = useRef<HTMLTextAreaElement>(null)
+  const noteRef   = useRef<HTMLTextAreaElement>(null)
+  const detailRef = useRef<HTMLParagraphElement>(null)
+  const [detailExpanded, setDetailExpanded] = useState(false)
+  const [isClamped, setIsClamped]           = useState(false)
 
   useEffect(() => {
     if (isExpanded) noteRef.current?.focus()
   }, [isExpanded])
+
+  useEffect(() => {
+    const el = detailRef.current
+    if (el) setIsClamped(el.scrollHeight > el.clientHeight)
+  }, [])
 
   const dateStr = v.latest_txn_date
     ? new Date(v.latest_txn_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -221,7 +243,26 @@ function ViolationRow({
             <span className={styles.employeeName}>{v.employee_name}</span>
             <span className="rule-chip">{RULE_LABELS[v.rule] ?? v.rule}</span>
           </div>
-          <p className={styles.detail}>{v.detail}</p>
+          <p
+            ref={detailRef}
+            className={`${styles.detail} ${detailExpanded ? styles.detailExpanded : ''}`}
+          >
+            {v.detail}
+          </p>
+          {isClamped && (
+            <button
+              className={styles.detailToggle}
+              onClick={() => setDetailExpanded((x) => !x)}
+              aria-expanded={detailExpanded}
+            >
+              {detailExpanded ? 'Show less' : 'Show more'}
+              <ChevronDown
+                size={12}
+                className={`${styles.toggleChevron} ${detailExpanded ? styles.toggleChevronUp : ''}`}
+                aria-hidden
+              />
+            </button>
+          )}
         </div>
 
         <div className={styles.rowMeta}>
@@ -261,36 +302,44 @@ function ViolationRow({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+            transition={prefersReduced
+              ? { duration: 0 }
+              : { duration: 0.2, ease: [0.25, 1, 0.5, 1] }
+            }
             style={{ overflow: 'hidden' }}
           >
             <div className={styles.resolvePanelInner}>
-              <textarea
-                ref={noteRef}
-                className={styles.noteInput}
-                placeholder={`Add a note for this ${expandedAction === 'dismissed' ? 'dismissal' : 'resolution'} (optional)`}
-                value={note}
-                onChange={(e) => onNote(e.target.value)}
-                rows={2}
-                aria-label="Resolution note"
-              />
-              <div className={styles.resolveActions}>
-                <button className="btn-ghost" onClick={onCancel} disabled={submitting}>
-                  Cancel
-                </button>
-                <button
-                  className={expandedAction === 'dismissed' ? 'btn-ghost' : 'btn-primary'}
-                  onClick={onConfirm}
-                  disabled={submitting}
-                  aria-label={`Confirm ${expandedAction}`}
-                >
-                  {submitting
-                    ? 'Saving…'
-                    : expandedAction === 'resolved'
-                    ? 'Confirm resolve'
-                    : 'Confirm dismiss'}
-                </button>
+              <div className={styles.resolvePanelRow}>
+                <textarea
+                  ref={noteRef}
+                  className={styles.noteInput}
+                  placeholder={`Add a note for this ${expandedAction === 'dismissed' ? 'dismissal' : 'resolution'} (optional)`}
+                  value={note}
+                  onChange={(e) => onNote(e.target.value)}
+                  rows={2}
+                  aria-label="Resolution note"
+                />
+                <div className={styles.resolveActions}>
+                  <button className="btn-ghost" onClick={onCancel} disabled={submitting}>
+                    Cancel
+                  </button>
+                  <button
+                    className={expandedAction === 'dismissed' ? 'btn-ghost' : 'btn-primary'}
+                    onClick={onConfirm}
+                    disabled={submitting}
+                    aria-label={`Confirm ${expandedAction}`}
+                  >
+                    {submitting
+                      ? 'Saving…'
+                      : expandedAction === 'resolved'
+                      ? 'Confirm resolve'
+                      : 'Confirm dismiss'}
+                  </button>
+                </div>
               </div>
+              {actionError && (
+                <p className={styles.actionErrorMsg}>{actionError}</p>
+              )}
             </div>
           </motion.div>
         )}

@@ -72,7 +72,7 @@ def llm_categorize(conn):
             client = anthropic.Anthropic()
             listing = "\n".join(f"{mcc}: {label} (${cad:,.0f}, {n} txns)" for mcc, label, cad, n in rows)
             resp = client.messages.create(
-                model="claude-sonnet-4-5", max_tokens=4000,
+                model="claude-sonnet-4-6", max_tokens=4000,
                 messages=[{"role": "user", "content":
                     "Below are the merchant category codes present in one "
                     "company's card transactions, with official descriptions "

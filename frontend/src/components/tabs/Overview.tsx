@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { fetchSummary, fetchViolations } from '../../api'
 import type { Summary, Violation } from '../../types'
 import styles from './Overview.module.css'
@@ -13,6 +13,9 @@ const RULE_LABELS: Record<string, string> = {
   personal_expense_suspected: 'Personal expense',
   duplicate_charge:           'Duplicate charge',
 }
+
+// CSS custom properties can't be used in SVG presentation attributes (recharts Bar fill)
+const ACCENT_COLOR = 'oklch(0.620 0.130 195)'
 
 const tickStyle = {
   fontFamily: 'var(--font-mono)',
@@ -33,19 +36,28 @@ const tooltipStyle = {
   labelStyle: { fontFamily: 'var(--font-mono)', color: 'var(--color-muted)', fontSize: 11 },
 }
 
-const listVariants = {
-  visible: { transition: { staggerChildren: 0.04 } },
-}
-const itemVariants = {
-  hidden:  { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.25, 1, 0.5, 1] } },
+interface Props {
+  onTabChange?: (tab: 'violations') => void
 }
 
-export default function Overview() {
+export default function Overview({ onTabChange }: Props) {
+  const prefersReduced = useReducedMotion()
   const [summary, setSummary]         = useState<Summary | null>(null)
   const [violations, setViolations]   = useState<Violation[]>([])
   const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState(false)
   const [barsReady, setBarsReady]     = useState(false)
+
+  const listVariants = prefersReduced
+    ? { hidden: {}, visible: {} }
+    : { hidden: {}, visible: { transition: { staggerChildren: 0.04 } } }
+
+  const itemVariants = prefersReduced
+    ? { hidden: {}, visible: {} }
+    : {
+        hidden:  { opacity: 0, y: 8 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.25, 1, 0.5, 1] } },
+      }
 
   useEffect(() => {
     Promise.all([fetchSummary(), fetchViolations()])
@@ -53,13 +65,22 @@ export default function Overview() {
         setSummary(s)
         setViolations(v)
         setLoading(false)
-        // allow one paint before triggering CSS transition on budget bars
         requestAnimationFrame(() => requestAnimationFrame(() => setBarsReady(true)))
       })
-      .catch(console.error)
+      .catch(() => {
+        setLoading(false)
+        setError(true)
+      })
   }, [])
 
   if (loading) return <Skeleton />
+  if (error) return (
+    <div className={styles.root}>
+      <p className={styles.errorNote}>
+        Unable to load dashboard data. Check the server connection and try refreshing.
+      </p>
+    </div>
+  )
   if (!summary) return null
 
   const totalSpend = summary.monthly_spend.reduce((acc: number, m: { total: number }) => acc + m.total, 0)
@@ -100,9 +121,9 @@ export default function Overview() {
             />
             <Bar
               dataKey="spend"
-              fill="oklch(0.620 0.130 195)"
+              fill={ACCENT_COLOR}
               radius={[3, 3, 0, 0]}
-              animationDuration={700}
+              animationDuration={prefersReduced ? 0 : 700}
               animationEasing="ease-out"
             />
           </BarChart>
@@ -184,7 +205,16 @@ export default function Overview() {
               ))}
               {violations.length > 5 && (
                 <li className={styles.moreNote}>
-                  +{violations.length - 5} more — see Violations tab
+                  {onTabChange ? (
+                    <button
+                      className={styles.moreLink}
+                      onClick={() => onTabChange('violations')}
+                    >
+                      +{violations.length - 5} more — view all violations
+                    </button>
+                  ) : (
+                    <>+{violations.length - 5} more — see Violations tab</>
+                  )}
                 </li>
               )}
             </motion.ul>
@@ -200,7 +230,7 @@ function Skeleton() {
   return (
     <div className={styles.root}>
       <div className="skeleton" style={{ height: 300, borderRadius: 8 }} />
-      <div className={styles.lower} style={{ marginTop: 'var(--space-8)' }}>
+      <div className={styles.lower}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="skeleton" style={{ height: 52 }} />

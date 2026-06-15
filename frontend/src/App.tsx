@@ -31,7 +31,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           {tab === 'overview' && (
             <motion.div key="overview" {...panel} style={panelStyle}>
-              <Overview />
+              <Overview onTabChange={(t) => setTab(t)} />
             </motion.div>
           )}
           {tab === 'violations' && (

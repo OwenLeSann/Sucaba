@@ -1,7 +1,5 @@
 TODO:
-    - Refine frontend dashboard
     - Implement additional optional features
-    - Implement unit backend unit testing (if needed, works fine right now)
     - Rewrite README.md to clearly present project
 
 Paid subscription services running this application:
@@ -165,7 +163,7 @@ python3 pipeline.py ../data/dummy_data.xlsx
 **7. Configure Apache**
 
 ```bash
-sudo nano /etc/apache2/sites-available/expense.conf
+sudo nano /etc/apache2/sites-available/sucaba.conf
 ```
 
 Paste:
@@ -181,7 +179,7 @@ Paste:
 
 ```bash
 sudo a2enmod proxy proxy_http
-sudo a2ensite expense
+sudo a2ensite sucaba
 sudo systemctl reload apache2
 ```
 
@@ -194,7 +192,7 @@ sudo certbot --apache -d yourdomain.com
 **9. Create systemd service**
 
 ```bash
-sudo nano /etc/systemd/system/expense.service
+sudo nano /etc/systemd/system/sucaba.service
 ```
 
 Paste:
@@ -247,8 +245,8 @@ python3 pipeline.py ../data/dummy_data.xlsx
 pip install -r ~/AI-SMB-Expense-Intelligence/requirements.txt
 
 # Restart the service
-sudo systemctl restart expense
-sudo systemctl status expense
+sudo systemctl restart sucaba
+sudo systemctl status sucaba
 ```
 
 ---

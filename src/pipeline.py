@@ -107,12 +107,12 @@ def llm_categorize(conn):
 # Each merchant name hashes to the same employee every run, keeping person-by-person spending patterns coherent
 # Arbitary business departments (name, headcount, budget per quarter CAD)
 DEPARTMENTS = [
-    ("Fleet",       7, 80000),
-    ("Operations",  9, 60000),
-    ("Sales",       5, 30000),
-    ("Marketing",   4, 25000),
-    ("Engineering", 5, 20000),
-    ("Finance",     3, 10000),
+    ("Fleet",       7, 300000),
+    ("Operations",  9, 750000),
+    ("Sales",       5, 250000),
+    ("Marketing",   4, 250000),
+    ("Engineering", 5, 250000),
+    ("Finance",     3, 300000),
 ]
 # Arbitrary employee first and last names
 FIRST = ["Sarah","Marcus","Priya","Dan","Aisha","Kevin","Lena","Omar","Grace",

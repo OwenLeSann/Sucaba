@@ -100,7 +100,7 @@ export default function Agent() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: prefersReduced ? 0 : 0.15 }}
             >
               <Trash2 size={14} />
               Clear
@@ -149,22 +149,24 @@ export default function Agent() {
         </AnimatePresence>
 
         {/* Typing indicator */}
-        {loading && (
-          <motion.div
-            className={`${styles.bubble} ${styles.bubbleAssistant}`}
-            initial={{ opacity: 0, y: prefersReduced ? 0 : 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <div className={styles.avatar} aria-hidden><Bot size={12} /></div>
-            <div className={styles.bubbleBody}>
-              <span className="typing-dots" aria-label="Assistant is thinking">
-                <span /><span /><span />
-              </span>
-            </div>
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {loading && (
+            <motion.div
+              className={`${styles.bubble} ${styles.bubbleAssistant}`}
+              initial={{ opacity: 0, y: prefersReduced ? 0 : 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <div className={styles.avatar} aria-hidden><Bot size={12} /></div>
+              <div className={styles.bubbleBody}>
+                <span className="typing-dots" aria-label="Assistant is thinking">
+                  <span /><span /><span />
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div ref={bottomRef} />
       </div>
@@ -232,6 +234,30 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                       <table className={styles.mdTable}>{children}</table>
                     </div>
                   )
+                },
+                ul({ children }) {
+                  return <ul className={styles.mdList}>{children}</ul>
+                },
+                ol({ children }) {
+                  return <ol className={`${styles.mdList} ${styles.mdListOrdered}`}>{children}</ol>
+                },
+                li({ children }) {
+                  return <li className={styles.mdListItem}>{children}</li>
+                },
+                code({ children }) {
+                  return <code className={styles.mdCode}>{children}</code>
+                },
+                pre({ children }) {
+                  return <pre className={styles.mdPre}>{children}</pre>
+                },
+                a({ href, children }) {
+                  return <a href={href} className={styles.mdLink} target="_blank" rel="noopener noreferrer">{children}</a>
+                },
+                h2({ children }) {
+                  return <h2 className={styles.mdH2}>{children}</h2>
+                },
+                h3({ children }) {
+                  return <h3 className={styles.mdH3}>{children}</h3>
                 },
               }}
             >

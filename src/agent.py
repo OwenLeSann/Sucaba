@@ -133,7 +133,6 @@ def recommend_approval(
     result["employee_id"] = employee_id
     return result
 
-# Minimal test
 if __name__ == "__main__":
     history = []
     print("Expense agent ready (ctrl-c to exit). Try: "

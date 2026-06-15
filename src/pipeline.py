@@ -8,6 +8,7 @@ Database schema:
     employees               — Identity
     employee_departments    — SCD2 assignment history (valid_from/valid_to)
     mcc_codes               — MCC -> label/category lookup
+    pre_approvals           — Employee-initiated pre-authorization requests
     transactions            — Lean fact table, raw values only
     violations              — Policy violations
     violation_transactions  — Junction: Which charges each policy violation covers

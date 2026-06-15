@@ -1,18 +1,13 @@
 """
 FastAPI server wrapping the expense agent and database.
-Run from src/ directory:  python server.py
 """
-import asyncio
-import sqlite3
+import asyncio, sqlite3, uvicorn
 from functools import partial
 from pathlib import Path
-
-import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-
 from agent import run_agent
 
 app = FastAPI(title="Expense Intelligence API")
@@ -30,7 +25,7 @@ DB_PATH = "expense.db"
 # In-memory session store: session_id -> messages list
 sessions: dict[str, list] = {}
 
-
+"""Reads rows from the database."""
 def _db_ro(sql: str, params: tuple = ()) -> list[dict]:
     conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
@@ -38,7 +33,7 @@ def _db_ro(sql: str, params: tuple = ()) -> list[dict]:
     conn.close()
     return rows
 
-
+"""Executes a write query and returns number of affected rows."""
 def _db_rw(sql: str, params: tuple = ()) -> int:
     conn = sqlite3.connect(DB_PATH)
     cur = conn.execute(sql, params)
@@ -47,8 +42,7 @@ def _db_rw(sql: str, params: tuple = ()) -> int:
     return cur.rowcount
 
 
-# ---------- Pydantic models ----------
-
+# Pydantic models --
 class ResolveRequest(BaseModel):
     status: str   # "resolved" | "dismissed"
     note: str | None = None
@@ -57,10 +51,10 @@ class ResolveRequest(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+# --
 
-
-# ---------- Endpoints ----------
-
+# Endpoints --
+"""Returns the monthly spend trend and current budgets with spend/remaining, for the dashboard."""
 @app.get("/api/summary")
 def get_summary():
     monthly_spend = _db_ro("""
@@ -87,7 +81,7 @@ def get_summary():
 
     return {"monthly_spend": monthly_spend, "budgets": budgets}
 
-
+"""Returns open policy violations with employee name, spend amount, and latest txn date for prioritization."""
 @app.get("/api/violations")
 def get_violations():
     rows = _db_ro("""
@@ -107,7 +101,7 @@ def get_violations():
     """)
     return {"violations": rows}
 
-
+"""Update a violation's status to 'resolved' or 'dismissed' with an optional note. Returns 404 if not found."""
 @app.post("/api/violations/{violation_id}/resolve")
 def resolve_violation(violation_id: int, req: ResolveRequest):
     if req.status not in ("resolved", "dismissed"):
@@ -120,14 +114,16 @@ def resolve_violation(violation_id: int, req: ResolveRequest):
         raise HTTPException(404, f"Violation {violation_id} not found")
     return {"ok": True, "violation_id": violation_id, "status": req.status}
 
-
+"""
+Chat endpoint: accepts a message and session ID, appends to session history, runs the agent, and returns the response. 
+The agent can call the on_chart callback with chart specs to include in the response.
+"""
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     messages = sessions.setdefault(req.session_id, [])
     messages.append({"role": "user", "content": req.message})
 
     chart_specs: list = []
-
     def on_chart(spec: dict) -> None:
         chart_specs.append(spec)
 
@@ -144,18 +140,20 @@ async def chat(req: ChatRequest):
 
     return {"text": text, "chart": chart_specs[0] if chart_specs else None}
 
-
+"""
+Endpoint to clear a session's message history. 
+Returns 200 even if session ID doesn't exist.
+"""
 @app.delete("/api/chat/{session_id}")
 def clear_session(session_id: str):
     sessions.pop(session_id, None)
     return {"ok": True}
-
 
 # Serve the built frontend in production (when frontend/dist exists)
 _DIST = Path(__file__).parent.parent / "frontend" / "dist"
 if _DIST.exists():
     app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="static")
 
-
 if __name__ == "__main__":
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+# --

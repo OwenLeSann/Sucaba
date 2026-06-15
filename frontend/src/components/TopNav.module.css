@@ -21,22 +21,33 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   background: var(--color-primary);
-  color: var(--color-primary-text);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   flex-shrink: 0;
+}
+
+.wordmarkGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .wordmark {
   font-size: var(--text-body);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-ink);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.wordmarkSub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-muted);
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
 .right {

@@ -4,6 +4,11 @@ TODO:
     - Implement unit backend unit testing (if needed, works fine right now)
     - Rewrite README.md to clearly present project
 
+Paid subscription services running this application:
+    - Anthropic Claude API
+    - AWS Micro.t3 EC2 Instance
+    - CloudFlare Hosted Domain
+
 # Expense Intelligence
 
 AI-powered SMB expense intelligence platform. Ingests corporate card transactions, classifies merchants via Claude, detects policy violations, and provides an agentic chat interface for finance managers.

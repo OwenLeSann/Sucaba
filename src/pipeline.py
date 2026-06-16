@@ -106,14 +106,14 @@ def llm_categorize(conn):
 # Simulated employee layer --
 # Because no cardholder identity (employee name, department, and card number) is provided in the dummy transaction xlsx, we simulate our own to demonstrate the platforms features
 # Each merchant name hashes to the same employee every run, keeping person-by-person spending patterns coherent
-# Arbitary business departments (name, headcount, budget per quarter CAD)
+# Arbitary business departments (name, headcount, quarterly budget CAD)
 DEPARTMENTS = [
-    ("Fleet",       7, 300000),
-    ("Operations",  9, 750000),
-    ("Sales",       5, 250000),
-    ("Marketing",   4, 250000),
-    ("Engineering", 5, 250000),
-    ("Finance",     3, 300000),
+    ("Fleet",       7, 150000),
+    ("Operations",  9, 300000),
+    ("Sales",       5, 125000),
+    ("Marketing",   4, 100000),
+    ("Engineering", 5, 100000),
+    ("Finance",     3, 125000),
 ]
 # Arbitrary employee first and last names
 FIRST = ["Sarah","Marcus","Priya","Dan","Aisha","Kevin","Lena","Omar","Grace",

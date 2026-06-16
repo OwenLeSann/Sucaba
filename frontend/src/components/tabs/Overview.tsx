@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -49,7 +49,6 @@ export default function Overview({ onTabChange }: Props) {
   const [budgetLoading, setBudgetLoading] = useState(false)
   const [error, setError]               = useState(false)
   const [barsReady, setBarsReady]       = useState(false)
-  const [chartDone, setChartDone]       = useState(false)
 
   const listVariants = prefersReduced
     ? { hidden: {}, visible: {} }
@@ -104,6 +103,14 @@ export default function Overview({ onTabChange }: Props) {
   )
   if (!summary) return null
 
+  const chartData = useMemo(
+    () => summary.monthly_spend.map((m) => ({
+      month: m.month.replace(/^20/, "'"),
+      spend: m.total,
+    })),
+    [summary.monthly_spend],
+  )
+
   const totalSpend = summary.monthly_spend.reduce((acc: number, m: { total: number }) => acc + m.total, 0)
   const recent     = violations.slice(0, 5)
 
@@ -134,10 +141,7 @@ export default function Overview({ onTabChange }: Props) {
         </div>
         <ResponsiveContainer width="100%" height={256} aria-label="Monthly card spend by month, bar chart">
           <BarChart
-            data={summary.monthly_spend.map((m) => ({
-              month: m.month.replace(/^20/, "'"),
-              spend: m.total,
-            }))}
+            data={chartData}
             margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
           >
             <CartesianGrid vertical={false} stroke="var(--color-border)" />
@@ -157,10 +161,7 @@ export default function Overview({ onTabChange }: Props) {
               dataKey="spend"
               fill={CHART_ACCENT}
               radius={[3, 3, 0, 0]}
-              isAnimationActive={!chartDone}
-              animationDuration={prefersReduced ? 0 : 700}
-              animationEasing="ease-out"
-              onAnimationEnd={() => setChartDone(true)}
+              isAnimationActive={false}
             />
           </BarChart>
         </ResponsiveContainer>

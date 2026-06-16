@@ -1,5 +1,4 @@
 TODO:
-    - Implement additional optional features
     - Rewrite README.md to clearly present project
 
 Paid subscription services running this application:

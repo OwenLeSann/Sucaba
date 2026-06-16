@@ -263,9 +263,43 @@ LEFT JOIN employee_departments ed
 
 # Deterministic policy rules (to search for transaction violations)
 PREAUTH_THRESHOLD = 50.00 # All expenses over $50.00 must be pre-authorized
-# For optional addition, flag MCCs highly correlated with personal spending
-# Expand list with more later*
-PERSONAL_MCCS = (5947,) # Gift shops
+
+# MCCs flagged as personal-use on a corporate card, split by confidence tier
+# Personal MCCs: No legitimate business interpretation (severity 5)
+PERSONAL_MCCS_T1 = (
+    5813,  # Drinking Places (Bars / Alcohol)
+    5921,  # Package Stores — Beer, Wine, Liquor
+    5947,  # Card / Gift / Novelty Shops
+    5993,  # Cigar Stores and Stands
+    7273,  # Dating and Escort Services
+    7801,  # Government-Licensed Online Casinos
+    7995,  # Betting / Lottery Tickets / Casino Chips
+)
+
+# Likely personal MCCs: Rare business edge cases (severity 4)
+PERSONAL_MCCS_T2 = (
+    5681,  # Furriers and Fur Shops
+    5940,  # Bicycle Shops
+    5945,  # Hobby, Toy and Game Shops
+    5977,  # Cosmetic Stores
+    5995,  # Pet Shops
+    7297,  # Massage Parlors
+    7832,  # Motion Picture Theaters
+    7933,  # Bowling Alleys
+    7994,  # Video Game Arcades / Establishments
+    7996,  # Amusement Parks
+)
+
+# Dual-use MCCs: Personal or legitimate business, flagged for review (severity 3)
+PERSONAL_MCCS_T3 = (
+    5733,  # Music Stores
+    5735,  # Record Shops
+    5941,  # Sporting Goods Stores
+    5992,  # Florists
+    7230,  # Barber and Beauty Shops
+    7298,  # Health and Beauty Shops
+    7992,  # Golf Courses — Public
+)
 
 """
 Detects and writes policy violations with severity into violations table.
@@ -304,14 +338,34 @@ def detect_violations(conn):
             f"may be split to stay under approval thresholds.", 4,
             ids.split(","))
 
-    # Rule 3: Personal-use merchant categories on a corporate card
-    for tid, eid, merch, amt in cur.execute(
-            "SELECT id, employee_id, merchant, amount_cad FROM v_transactions "
-            "WHERE mcc IN (%s) AND debit_credit='Debit'"
-            % ",".join(map(str, PERSONAL_MCCS))).fetchall():
+    # Rule 3: Personal-use merchant categories on a corporate card (three tiers)
+    # Personal use
+    for tid, eid, merch, amt, label in cur.execute(
+            "SELECT t.id, t.employee_id, t.merchant, t.amount_cad, m.label "
+            "FROM v_transactions t LEFT JOIN mcc_codes m ON m.mcc = t.mcc "
+            "WHERE t.mcc IN (%s) AND t.debit_credit='Debit'"
+            % ",".join(map(str, PERSONAL_MCCS_T1))).fetchall():
         add(eid, "personal_expense_suspected",
-            f"${amt:,.2f} at {merch} (gift/novelty merchant) — corporate "
-            f"cards may not be used for personal expenses.", 5, [tid])
+            f"${amt:,.2f} at {merch} ({label}) — corporate cards may not "
+            f"be used for personal expenses.", 5, [tid])
+    # Possibly personal use
+    for tid, eid, merch, amt, label in cur.execute(
+            "SELECT t.id, t.employee_id, t.merchant, t.amount_cad, m.label "
+            "FROM v_transactions t LEFT JOIN mcc_codes m ON m.mcc = t.mcc "
+            "WHERE t.mcc IN (%s) AND t.debit_credit='Debit'"
+            % ",".join(map(str, PERSONAL_MCCS_T2))).fetchall():
+        add(eid, "personal_expense_suspected",
+            f"${amt:,.2f} at {merch} ({label}) — likely personal use of a "
+            f"corporate card; requires manager justification.", 4, [tid])
+    # Dual-use
+    for tid, eid, merch, amt, label in cur.execute(
+            "SELECT t.id, t.employee_id, t.merchant, t.amount_cad, m.label "
+            "FROM v_transactions t LEFT JOIN mcc_codes m ON m.mcc = t.mcc "
+            "WHERE t.mcc IN (%s) AND t.debit_credit='Debit'"
+            % ",".join(map(str, PERSONAL_MCCS_T3))).fetchall():
+        add(eid, "personal_expense_suspected",
+            f"${amt:,.2f} at {merch} ({label}) — merchant category is "
+            f"commonly personal; flagged for review.", 3, [tid])
 
     # Rule 4: Exact duplicate charges (same merchant, amount, date)
     for ids, eid, merch, day, amt, n in cur.execute("""

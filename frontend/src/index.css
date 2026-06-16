@@ -115,7 +115,7 @@ button {
 }
 .btn-danger:hover {
   background: var(--color-error);
-  color: #fff;
+  color: var(--color-primary-text);
 }
 
 /* ── Severity badges ─────────────────────────────── */
@@ -131,11 +131,11 @@ button {
   font-weight: 500;
   flex-shrink: 0;
 }
-.sev-1 { background: oklch(0.940 0.020 155); color: oklch(0.300 0.090 155); }
-.sev-2 { background: oklch(0.965 0.020  70); color: oklch(0.350 0.110  70); }
-.sev-3 { background: oklch(0.960 0.030  55); color: oklch(0.380 0.130  55); }
-.sev-4 { background: oklch(0.950 0.035  35); color: oklch(0.380 0.140  35); }
-.sev-5 { background: oklch(0.940 0.040  20); color: oklch(0.350 0.150  20); }
+.sev-1 { background: var(--color-sev-1-bg); color: var(--color-sev-1-ink); }
+.sev-2 { background: var(--color-sev-2-bg); color: var(--color-sev-2-ink); }
+.sev-3 { background: var(--color-sev-3-bg); color: var(--color-sev-3-ink); }
+.sev-4 { background: var(--color-sev-4-bg); color: var(--color-sev-4-ink); }
+.sev-5 { background: var(--color-sev-5-bg); color: var(--color-sev-5-ink); }
 
 /* ── Status chip ─────────────────────────────────── */
 .status-chip {

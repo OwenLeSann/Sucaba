@@ -4,6 +4,7 @@
   --color-surface:        oklch(0.975 0.006 330);   /* panels, sidebar */
   --color-surface-2:      oklch(0.950 0.010 330);   /* hover rows, selected */
   --color-border:         oklch(0.900 0.008 330);   /* dividers, input strokes */
+  --color-border-hover:   oklch(0.820 0.010 330);   /* border on interactive hover */
 
   --color-ink:            oklch(0.130 0.012 330);   /* body text (>7:1 on bg) */
   --color-muted:          oklch(0.430 0.010 330);   /* secondary text (≥4.5:1) */
@@ -14,6 +15,17 @@
 
   --color-accent:         oklch(0.620 0.130 195);   /* teal — chart fills */
   --color-accent-deep:    oklch(0.380 0.130 195);   /* teal — links, text */
+
+  --color-sev-1-bg:       oklch(0.940 0.020 155);
+  --color-sev-1-ink:      oklch(0.300 0.090 155);
+  --color-sev-2-bg:       oklch(0.965 0.020  70);
+  --color-sev-2-ink:      oklch(0.350 0.110  70);
+  --color-sev-3-bg:       oklch(0.960 0.030  55);
+  --color-sev-3-ink:      oklch(0.380 0.130  55);
+  --color-sev-4-bg:       oklch(0.950 0.035  35);
+  --color-sev-4-ink:      oklch(0.380 0.140  35);
+  --color-sev-5-bg:       oklch(0.940 0.040  20);
+  --color-sev-5-ink:      oklch(0.350 0.150  20);
 
   --color-error:          oklch(0.480 0.200  25);
   --color-error-bg:       oklch(0.965 0.018  25);

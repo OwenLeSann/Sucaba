@@ -6,14 +6,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import type { ChartSpec } from '../types'
-
-const COLORS = [
-  'oklch(0.620 0.130 195)',  // teal
-  'oklch(0.480 0.155 330)',  // rose-mauve
-  'oklch(0.650 0.160  60)',  // amber
-  'oklch(0.540 0.130 270)',  // purple
-  'oklch(0.570 0.130 145)',  // green
-]
+import { CHART_COLORS as COLORS } from '../chartTheme'
 
 const fmtCAD = (v: number) =>
   '$' + Math.round(v).toLocaleString('en-CA')

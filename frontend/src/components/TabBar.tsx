@@ -20,6 +20,7 @@ export default function TabBar({ active, onChange, violationCount }: Props) {
       {TABS.map((t) => (
         <button
           key={t.id}
+          id={`tab-${t.id}`}
           role="tab"
           aria-selected={active === t.id}
           aria-controls={`panel-${t.id}`}

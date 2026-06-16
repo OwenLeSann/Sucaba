@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { fetchSummary, fetchViolations } from '../../api'
 import type { Summary, Violation } from '../../types'
 import styles from './Overview.module.css'
+import { CHART_ACCENT } from '../../chartTheme'
 
 const RULE_LABELS: Record<string, string> = {
   missing_preauthorization: 'Pre-auth missing',
@@ -13,9 +14,6 @@ const RULE_LABELS: Record<string, string> = {
   personal_expense_suspected: 'Personal expense',
   duplicate_charge:           'Duplicate charge',
 }
-
-// CSS custom properties can't be used in SVG presentation attributes (recharts Bar fill)
-const ACCENT_COLOR = 'oklch(0.620 0.130 195)'
 
 const tickStyle = {
   fontFamily: 'var(--font-mono)',
@@ -108,6 +106,19 @@ export default function Overview({ onTabChange }: Props) {
   const totalSpend = summary.monthly_spend.reduce((acc: number, m: { total: number }) => acc + m.total, 0)
   const recent     = violations.slice(0, 5)
 
+  function fmtMonth(ym: string) {
+    const [y, m] = ym.split('-')
+    return new Date(+y, +m - 1).toLocaleDateString('en-CA', { month: 'short', year: 'numeric' })
+  }
+  const months     = summary.monthly_spend
+  const spendFirst = months[0]?.month
+  const spendLast  = months[months.length - 1]?.month
+  const spendRange = spendFirst && spendLast
+    ? spendFirst === spendLast
+      ? fmtMonth(spendFirst)
+      : `${fmtMonth(spendFirst)} – ${fmtMonth(spendLast)}`
+    : null
+
   return (
     <div className={styles.root}>
 
@@ -117,10 +128,10 @@ export default function Overview({ onTabChange }: Props) {
           <h2 className={styles.sectionTitle}>Monthly Card Spend</h2>
           <span className={styles.sectionMeta}>
             <span className="mono">${Math.round(totalSpend).toLocaleString('en-CA')}</span>
-            {' '}total · Aug 2025 – present
+            {spendRange && <> total · {spendRange}</>}
           </span>
         </div>
-        <ResponsiveContainer width="100%" height={256}>
+        <ResponsiveContainer width="100%" height={256} aria-label="Monthly card spend by month, bar chart">
           <BarChart
             data={summary.monthly_spend.map((m) => ({
               month: m.month.replace(/^20/, "'"),
@@ -143,7 +154,7 @@ export default function Overview({ onTabChange }: Props) {
             />
             <Bar
               dataKey="spend"
-              fill={ACCENT_COLOR}
+              fill={CHART_ACCENT}
               radius={[3, 3, 0, 0]}
               animationDuration={prefersReduced ? 0 : 700}
               animationEasing="ease-out"

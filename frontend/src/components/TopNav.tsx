@@ -45,7 +45,7 @@ export default function TopNav() {
       </div>
       <div className={styles.right}>
         <span className={styles.role}>Finance Manager</span>
-        <span className={styles.avatar} aria-label="User account">FM</span>
+        <button className={styles.avatar} aria-label="User account">FM</button>
       </div>
     </header>
   )

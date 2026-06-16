@@ -16,7 +16,7 @@
 
 .sectionHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-4);
   flex-wrap: wrap;
 }
@@ -53,7 +53,7 @@
 }
 
 .quarterPill {
-  padding: 3px var(--space-3);
+  padding: 6px var(--space-3);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   font-size: var(--text-micro);
@@ -156,7 +156,7 @@
   padding: 0 5px;
   border-radius: var(--radius-full);
   background: var(--color-error);
-  color: #fff;
+  color: var(--color-primary-text);
   font-size: 10px;
   font-weight: 700;
   margin-left: var(--space-2);

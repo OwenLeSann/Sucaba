@@ -15,7 +15,7 @@ export interface Summary {
   monthly_spend: MonthlySpend[]
   budgets: DepartmentBudget[]
   quarters: string[]
-  current_quarter: string
+  current_quarter: string | null
 }
 
 export interface Violation {

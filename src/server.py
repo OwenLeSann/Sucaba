@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_PATH = "expense.db"
+DB_PATH = Path(__file__).parent.parent / "data" / "expense.db"
 
 # In-memory session store: session_id -> messages list
 sessions: dict[str, list] = {}
@@ -160,7 +160,7 @@ def clear_session(session_id: str):
     sessions.pop(session_id, None)
     return {"ok": True}
 
-# Serve the built frontend in production (when frontend/dist exists)
+# Serve the built frontend in production from fontend/dist
 _DIST = Path(__file__).parent.parent / "frontend" / "dist"
 if _DIST.exists():
     app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="static")

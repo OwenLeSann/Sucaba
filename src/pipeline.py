@@ -17,10 +17,11 @@ Database schema:
                               correct department via a temporal join
 """
 import sys, sqlite3, random, hashlib, os, anthropic, json
+from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
-DB_PATH = "expense.db"
+DB_PATH = Path(__file__).parent.parent / "data" / "expense.db"
 
 # MCC lookup codes --
 """

@@ -3,8 +3,9 @@ Gives tool definitions (JSON schemas sent to the Claude API) and the
 matching executor functions for the provided schema.
 """
 import datetime, json, re, sqlite3
+from pathlib import Path
 
-DB_PATH = "expense.db"
+DB_PATH = Path(__file__).parent.parent / "data" / "expense.db"
 
 DB_SCHEMA_DOC = """
 PRIMARY QUERY SURFACE — use this view for almost everything:

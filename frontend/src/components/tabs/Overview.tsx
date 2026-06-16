@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -41,12 +41,16 @@ interface Props {
 }
 
 export default function Overview({ onTabChange }: Props) {
-  const prefersReduced = useReducedMotion()
-  const [summary, setSummary]         = useState<Summary | null>(null)
-  const [violations, setViolations]   = useState<Violation[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState(false)
-  const [barsReady, setBarsReady]     = useState(false)
+  const prefersReduced  = useReducedMotion()
+  const isFirstLoad     = useRef(true)
+  const [summary, setSummary]           = useState<Summary | null>(null)
+  const [violations, setViolations]     = useState<Violation[]>([])
+  const [quarters, setQuarters]         = useState<string[]>([])
+  const [quarter, setQuarter]           = useState<string | null>(null)
+  const [loading, setLoading]           = useState(true)
+  const [budgetLoading, setBudgetLoading] = useState(false)
+  const [error, setError]               = useState(false)
+  const [barsReady, setBarsReady]       = useState(false)
 
   const listVariants = prefersReduced
     ? { hidden: {}, visible: {} }
@@ -59,19 +63,37 @@ export default function Overview({ onTabChange }: Props) {
         visible: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.25, 1, 0.5, 1] } },
       }
 
+  // Violations load once — they're not quarter-scoped on the overview.
   useEffect(() => {
-    Promise.all([fetchSummary(), fetchViolations()])
-      .then(([s, v]) => {
+    fetchViolations()
+      .then(setViolations)
+      .catch(() => {})
+  }, [])
+
+  // Summary re-fetches whenever the selected quarter changes.
+  useEffect(() => {
+    if (isFirstLoad.current) {
+      setLoading(true)
+    } else {
+      setBudgetLoading(true)
+      setBarsReady(false)
+    }
+    isFirstLoad.current = false
+
+    fetchSummary(quarter ?? undefined)
+      .then((s) => {
         setSummary(s)
-        setViolations(v)
+        setQuarters(s.quarters)
         setLoading(false)
+        setBudgetLoading(false)
         requestAnimationFrame(() => requestAnimationFrame(() => setBarsReady(true)))
       })
       .catch(() => {
         setLoading(false)
+        setBudgetLoading(false)
         setError(true)
       })
-  }, [])
+  }, [quarter])
 
   if (loading) return <Skeleton />
   if (error) return (
@@ -135,11 +157,30 @@ export default function Overview({ onTabChange }: Props) {
 
         {/* Department budgets */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            Department Budgets
-            <span className={styles.quarterBadge}>{summary.budgets[0]?.quarter}</span>
-          </h2>
-          <div className={styles.budgets}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>Department Budgets</h2>
+            {quarters.length > 1 && (
+              <div className={styles.quarterPills} role="group" aria-label="Select quarter">
+                {quarters.map((q) => (
+                  <button
+                    key={q}
+                    className={`${styles.quarterPill} ${(quarter ?? summary.current_quarter) === q ? styles.quarterPillActive : ''}`}
+                    onClick={() => setQuarter(q)}
+                    aria-pressed={(quarter ?? summary.current_quarter) === q}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+            {quarters.length === 1 && (
+              <span className={styles.quarterBadge}>{summary.current_quarter}</span>
+            )}
+          </div>
+          <div
+            className={styles.budgets}
+            style={{ opacity: budgetLoading ? 0.45 : 1, transition: 'opacity var(--dur-fast)' }}
+          >
             {summary.budgets.map((b) => {
               const pct  = Math.min((b.spent / b.budget_cad) * 100, 100)
               const over = b.spent > b.budget_cad

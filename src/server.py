@@ -56,7 +56,12 @@ class ChatRequest(BaseModel):
 # Endpoints --
 """Returns the monthly spend trend and current budgets with spend/remaining, for the dashboard."""
 @app.get("/api/summary")
-def get_summary():
+def get_summary(quarter: str | None = None):
+    quarters = [r["quarter"] for r in _db_ro(
+        "SELECT DISTINCT quarter FROM department_budgets ORDER BY quarter"
+    )]
+    selected = quarter if (quarter and quarter in quarters) else (quarters[-1] if quarters else None)
+
     monthly_spend = _db_ro("""
         SELECT substr(txn_date, 1, 7) AS month,
                ROUND(SUM(amount_cad), 2) AS total
@@ -65,6 +70,8 @@ def get_summary():
         GROUP BY 1 ORDER BY 1
     """)
 
+    # Spend is scoped to the selected quarter so bars reflect that period only.
+    # SQLite quarter expression: YYYY-Q[1-4] via integer arithmetic on the month number.
     budgets = _db_ro("""
         SELECT b.department, b.quarter, b.budget_cad,
                ROUND(COALESCE(s.spent, 0), 2) AS spent,
@@ -72,14 +79,18 @@ def get_summary():
         FROM department_budgets b
         LEFT JOIN (
             SELECT department, ROUND(SUM(amount_cad), 2) AS spent
-            FROM v_transactions WHERE debit_credit = 'Debit'
+            FROM v_transactions
+            WHERE debit_credit = 'Debit'
+              AND (strftime('%Y', txn_date) || '-Q' ||
+                   CAST((CAST(strftime('%m', txn_date) AS INTEGER) + 2) / 3 AS TEXT)) = ?
             GROUP BY department
         ) s ON s.department = b.department
-        WHERE b.quarter = (SELECT MAX(quarter) FROM department_budgets)
+        WHERE b.quarter = ?
         ORDER BY b.department
-    """)
+    """, (selected, selected))
 
-    return {"monthly_spend": monthly_spend, "budgets": budgets}
+    return {"monthly_spend": monthly_spend, "budgets": budgets,
+            "quarters": quarters, "current_quarter": selected}
 
 """Returns open policy violations with employee name, spend amount, and latest txn date for prioritization."""
 @app.get("/api/violations")

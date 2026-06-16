@@ -11,8 +11,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function fetchSummary(): Promise<Summary> {
-  return request<Summary>('/summary')
+export function fetchSummary(quarter?: string): Promise<Summary> {
+  const qs = quarter ? `?quarter=${encodeURIComponent(quarter)}` : ''
+  return request<Summary>(`/summary${qs}`)
 }
 
 export async function fetchViolations(): Promise<Violation[]> {

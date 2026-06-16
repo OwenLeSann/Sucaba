@@ -156,6 +156,7 @@ export default function Overview({ onTabChange }: Props) {
             <Tooltip
               formatter={(v: number) => ['$' + Math.round(v).toLocaleString('en-CA') + ' CAD', 'Spend']}
               {...tooltipStyle}
+              animationDuration={0}
             />
             <Bar
               dataKey="spend"

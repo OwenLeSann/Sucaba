@@ -76,6 +76,7 @@ export default function Chart({ spec, height = 260 }: Props) {
             <Tooltip
               formatter={(v: number) => fmtCAD(v)}
               {...tooltipStyle}
+              animationDuration={0}
             />
             <Legend wrapperStyle={{ fontFamily: 'var(--font-sans)', fontSize: 12 }} />
           </PieChart>
@@ -130,7 +131,7 @@ export default function Chart({ spec, height = 260 }: Props) {
             <CartesianGrid vertical={false} stroke="var(--color-border)" />
             <XAxis dataKey="x" tick={tickStyle} axisLine={false} tickLine={false} />
             <YAxis tick={tickStyle} axisLine={false} tickLine={false} tickFormatter={fmtCAD} width={72} />
-            <Tooltip formatter={(v: number) => fmtCAD(v)} {...tooltipStyle} />
+            <Tooltip formatter={(v: number) => fmtCAD(v)} {...tooltipStyle} animationDuration={0} />
             {spec.series.length > 1 && <Legend wrapperStyle={{ fontFamily: 'var(--font-sans)', fontSize: 12 }} />}
             {spec.series.map((s, i) => (
               <Line

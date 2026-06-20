@@ -131,24 +131,26 @@ The agent can call the on_chart callback with chart specs to include in the resp
 """
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    messages = sessions.setdefault(req.session_id, [])
+    messages = sessions.setdefault(req.session_id, []) # Returns existing messages list for this session ID, or creates a new one if it doesn't exist
     messages.append({"role": "user", "content": req.message})
 
     chart_specs: list = []
+    """Callback the agent can use to include a chart spec in the response."""
     def on_chart(spec: dict) -> None:
         chart_specs.append(spec)
 
     loop = asyncio.get_event_loop()
     try:
         text = await loop.run_in_executor(
-            None, partial(run_agent, messages, on_chart)
-        )
+            None, partial(run_agent, messages, on_chart) # Synchronous blocking function, partial prebinds arguments so executor only gets a zero-arg function to call.
+        ) # Runs function in separate thread to avoid blocking the event loop, since agent is synchronous and may do long-running work.
     except Exception as exc:
         # Remove the user message we just appended so the session stays coherent
         if messages and messages[-1].get("role") == "user":
             messages.pop()
         raise HTTPException(500, f"Agent error: {exc}") from exc
 
+    # Include first chart spec if agent provided any, otherwise None. Frontend decides how to handle None (e.g. hide chart area) vs a spec dict (e.g. render chart).
     return {"text": text, "chart": chart_specs[0] if chart_specs else None}
 
 """
@@ -160,7 +162,7 @@ def clear_session(session_id: str):
     sessions.pop(session_id, None)
     return {"ok": True}
 
-# Serve the built frontend in production from fontend/dist
+# Serve the built frontend in production from frontend by mounting frontend/dist/ at route URL and serving index.html for the root path. In development, the frontend is served separately by Vite dev server with CORS enabled, making this code a no-op.
 _DIST = Path(__file__).parent.parent / "frontend" / "dist"
 if _DIST.exists():
     app.mount("/", StaticFiles(directory=str(_DIST), html=True), name="static")
